@@ -61,7 +61,7 @@ void init_opengl(){
   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
   glTexEnvf(GL_TEXTURE_2D,GL_TEXTURE_ENV_MODE,GL_MODULATE);
  glEnable(GL_TEXTURE_2D);
- glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,640/stride,480/stride,0,GL_RGB,GL_UNSIGNED_BYTE,texture);
+ glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,640,480,0,GL_RGB,GL_UNSIGNED_BYTE,texture);
 
 }
 

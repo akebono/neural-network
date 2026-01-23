@@ -11,6 +11,8 @@ unsigned char texture[2000000];
 #define W 640
 #define H 480
 int stride=1;
+unsigned char *img;
+unsigned char *img1;
 
 #include "window.c"
 
@@ -207,46 +209,9 @@ int main(){
   l1.weights[i*9+5]=0.2;
  }
 
-/*
- l1.weights[0]=-0.2;
- l1.weights[1]=-0.2;
- l1.weights[2]=-0.2;
- l1.weights[3]=0;
- l1.weights[4]=0;
- l1.weights[5]=0;
- l1.weights[6]=0.2;
- l1.weights[7]=0.2;
- l1.weights[8]=0.2;
-*/
 
-/* biaksplen
- l1.weights[0]=0.00880226;
- l1.weights[1]=-0.00288481;
- l1.weights[2]=0.00989562;
- l1.weights[3]=0.02188357;
- l1.weights[4]=-0.01694648;
- l1.weights[5]=0.00457769;
- l1.weights[6]=0.00704226;
- l1.weights[7]=-0.02493229;
- l1.weights[8]=-0.00983143;
-*/
- ConvLayer l2;
- l2.in_channels=32;
- l2.out_channels=32;
- l2.kernel_size=3;
- l2.weights=malloc(sizeof(float)*l2.kernel_size*l2.kernel_size*l2.out_channels);
- l2.biases=malloc(sizeof(float)*l2.out_channels);
-
- for(int i=0;i<l2.out_channels;i++)
-  l2.biases[i]=0;
-
- for(int i=0;i<l2.out_channels;i++){
-  l2.weights[i*9]=rand()*1.0f/RAND_MAX;
- }
-
+ float *image;
  png_image data;
- char *img;
-
  int step;
  unsigned int image_size;
  memset(&data,0,sizeof(data));
@@ -255,69 +220,37 @@ int main(){
  if(png_image_begin_read_from_file(&data,"test.png")!=0){
    img = malloc(PNG_IMAGE_SIZE(data));
    image_size=PNG_IMAGE_SIZE(data);
+   image=malloc(sizeof(float)*image_size);
    png_image_finish_read(&data, NULL, img, 0, NULL);
    printf("%i %i %i (%i)\n",data.width,data.height,PNG_IMAGE_SIZE(data),data.format);
    if(data.format==0)
      step=1;
-   else if(data.format==2)
+   else if(data.format==2){
      step=3;
+    for(int i=0;i<image_size;i++)
+     image[i]=img[i]/255.0f;
+   }else if(data.format==3){
+    step=4;
+    for(int i=0;i<image_size/4;i++){
+     image[i*3]=img[i*4]*1.0f/255.0f;
+     image[i*3+1]=img[i*4+1]*1.0f/255.0f;
+     image[i*3+2]=img[i*4+2]*1.0f/255.0f;
+    }
+   }
    png_image_free(&data);
  }
- float *image=malloc(sizeof(float)*image_size);
- for(int i=0;i<image_size;i++)
-  image[i]=img[i]*1.0f/255.0f;
+
 // dense_layer(&l1,image,result,H,W);
- dense_layer_strided(&l1,image,result,H,W,stride);
+// dense_layer_strided(&l1,image,result,H,W,stride);
 
- float *result1=malloc(H*W*sizeof(float)*l2.out_channels);
- l2.weights[0]=0;
- l2.weights[1]=0.1;
- l2.weights[2]=0;
- l2.weights[3]=0;
- l2.weights[4]=0.1;
- l2.weights[5]=0;
- l2.weights[6]=0;
- l2.weights[7]=0.2;
- l2.weights[8]=0.1;
-// dense_layer_strided(&l2,result,result1,H,W,1);
-
-/*
- float *imageresult=malloc(sizeof(float)*image_size);
- memset(&data,0,sizeof(data));
- data.format = PNG_FORMAT_RGB;
- data.version = PNG_IMAGE_VERSION;
- if(png_image_begin_read_from_file(&data,"test-result.png")!=0){
-   img = malloc(PNG_IMAGE_SIZE(data));
-   image_size=PNG_IMAGE_SIZE(data);
-   png_image_finish_read(&data, NULL, img, 0, NULL);
-   printf("%i %i %i (%i)\n",data.width,data.height,PNG_IMAGE_SIZE(data),data.format);
-   if(data.format==0)
-     step=1;
-   else if(data.format==2)
-     step=3;
-   png_image_free(&data);
- }
- for(int i=0;i<image_size;i++)
-  imageresult[i]=image[i]-img[i]*1.0f/255.0f;
-*/
- ConvGradients cgrad;
-/*
- conv_backward(&l1,image,imageresult,&cgrad,H,W);
- float learning_rate=0.1f;
- conv_update(&l1,&cgrad,learning_rate);
-*/
- FCLayer fclayer;
- fclayer.in_channels=32;
- fclayer.out_channels=6;
- fclayer.bias=0;
- fclayer.weights=malloc(sizeof(float)*H*W);
-// fully_connected_layer(,W,H);
-// dense_layer_strided(&l1,imageresult,result,H,W,stride);
  for(int i=0;i<640*480;i++){
-  texture[i*3]=(unsigned char)(result[i*l1.out_channels]*255);
+  texture[i*3]=(unsigned char)(image[i*3]*255);
+  texture[i*3+1]=(unsigned char)(image[i*3+1]*255);
+  texture[i*3+2]=(unsigned char)(image[i*3+2]*255);
+/*  texture[i*3]=(unsigned char)(result[i*l1.out_channels]*255);
   texture[i*3+1]=(unsigned char)(result[i*l1.out_channels]*255);
   texture[i*3+2]=(unsigned char)(result[i*l1.out_channels]*255);
- }
+*/}
 
  createWindow();
 
