@@ -61,8 +61,7 @@ void init_opengl(){
   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP);
   glTexEnvf(GL_TEXTURE_2D,GL_TEXTURE_ENV_MODE,GL_MODULATE);
  glEnable(GL_TEXTURE_2D);
- glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,640,480,0,GL_RGB,GL_UNSIGNED_BYTE,texture);
-
+ glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,640/stride,480/stride,0,GL_RGB,GL_UNSIGNED_BYTE,texture);
 }
 
 void draw(){
@@ -79,10 +78,11 @@ void draw(){
  glEnd();
 }
 
-LRESULT CALLBACK WinProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam){
+LRESULT CALLBACK WinProc(HWND lhwnd,UINT msg,WPARAM wParam,LPARAM lParam){
   switch(msg){
     case WM_CREATE:
-    hDC=GetDC(hwnd);
+
+    hDC=GetDC(lhwnd);
     iPixelFormat = ChoosePixelFormat(hDC, &pfd);
     SetPixelFormat(hDC,iPixelFormat,&pfd);
     hRC = wglCreateContext( hDC );
@@ -99,7 +99,7 @@ LRESULT CALLBACK WinProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam){
       PostQuitMessage(0);
     break;
     default:
-      return DefWindowProc(hwnd,msg,wParam,lParam);
+      return DefWindowProc(lhwnd,msg,wParam,lParam);
   }
   return 0;
 }
@@ -123,7 +123,7 @@ void createWindow(){
     wcex.hIconSm        =0;
 
   if(!RegisterClassExA(&wcex)){
-    sprintf(buf,"RegisterClassEx failed with error %08X\n",GetLastError());
+    sprintf(buf,"RegisterClassEx failed with error %08lX\n",GetLastError());
     MessageBox(0,buf,"Error",0);
     return;
   }
@@ -131,8 +131,9 @@ void createWindow(){
   hwnd = CreateWindowA("HELLO", "june 2022 game",WS_POPUP,
       500, 0, width, height, 0, 0,0, 0);
 
+
   if(!hwnd){ 
-    sprintf(buf,"error:%08X\n",GetLastError());
+    sprintf(buf,"error:%08lX\n",GetLastError());
     MessageBox(0,buf,"nope",0);
     return;
   }
