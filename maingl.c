@@ -7,14 +7,15 @@
 #include <gl/gl.h>
 #include "png/png.h"
 
+
+#include "save_png.c"
+
 unsigned char texture[2000000];
 #define W 640
 #define H 480
-int stride=2;
+int stride=1;
 unsigned char *img;
 unsigned char *img1;
-
-#include "window.c"
 
 typedef struct {
  int in_channels;
@@ -24,6 +25,11 @@ typedef struct {
  float *biases;
 }ConvLayer;
 
+ConvLayer l1;
+ConvLayer l2;
+float *result;
+
+#include "window.c"
 
 typedef struct{
  float* d_weights;  // Gradients for weights
@@ -56,66 +62,37 @@ void fully_conneted_layer(float *input,float *output,FCLayer *layer,int w,int h)
  }
 }
 
-float * dense_layer(ConvLayer *layer,
- float* input,float *output,
- int h, int w){
-
- int H_out=h-layer->kernel_size+1;
- int W_out=w-layer->kernel_size+1;
- for(int y=0;y<H_out;y++){
-  for(int x=0;x<W_out;x++){
-   for(int oc=0;oc<layer->out_channels;oc++){
-    float summ=layer->biases[oc];
-    for(int ic=0;ic<layer->in_channels;ic++){
-     for(int ky=0;ky<layer->kernel_size;ky++){
-      for(int kx=0;kx<layer->kernel_size;kx++){
-       summ+=input[((y+ky)*W_out+x+kx)*layer->in_channels+ic]*layer->weights[kx+3*ky+oc*layer->kernel_size*layer->kernel_size+layer->kernel_size*layer->kernel_size*layer->out_channels*ic];
-      }
-     }
-    }
-    output[layer->out_channels*(y*W_out+x)+oc]=summ;
-
-   }
-  }
-printf("%i=y\n",y);
- }
-/*
- for(int i=0;i<100000;i++)
-  output[i]=(float)(input[i]/255.0);
-*/
- return output;
-}
-
 
 float * dense_layer_strided(ConvLayer *layer,
  float* input,float *output,
  int h, int w,int stride){
 
- int H_out=h/stride-layer->kernel_size+2;
- int W_out=w/stride-layer->kernel_size+2;
+ int H_out=h/stride-layer->kernel_size+1;
+ int W_out=w/stride-layer->kernel_size+1;
  for(int y=0;y<H_out;y++){
+
   for(int x=0;x<W_out;x++){
    for(int oc=0;oc<layer->out_channels;oc++){
     float summ=layer->biases[oc];
     for(int ic=0;ic<layer->in_channels;ic++){
      for(int ky=0;ky<layer->kernel_size;ky++){
       for(int kx=0;kx<layer->kernel_size;kx++){
-       int input_idx = ((y+ky)*W_out*stride+(x+kx))*layer->in_channels*stride+ic*stride;
-       summ+=input[input_idx]*layer->weights[kx+layer->kernel_size*ky+oc*layer->kernel_size*layer->kernel_size+layer->kernel_size*layer->kernel_size*layer->out_channels*ic];
+       size_t input_idx = ((y+ky)*W_out*stride+(x+kx))*layer->in_channels*stride+ic*stride;
+       size_t weight_idx=kx+layer->kernel_size*ky+ic*layer->kernel_size*layer->kernel_size+oc*layer->kernel_size*layer->kernel_size*layer->in_channels;
+//9830400
+       summ+=input[input_idx]*layer->weights[weight_idx];
+
       }
      }
     }
+
     output[layer->out_channels*(y*W_out+x)+oc]=summ;
 
    }
   }
-  //printf("[%.1f%%]\n",y*100.0/H_out);
+//  printf("[%.1f%%]\n",y*100.0/H_out);
  }
-//printf("[100.0%%]\n");
-/*
- for(int i=0;i<100000;i++)
-  output[i]=(float)(input[i]/255.0);
-*/
+ printf("[100.0%%]\n");
  return output;
 }
 
@@ -183,7 +160,7 @@ void train_conv_layer(ConvLayer *layer,TrainingData *data,int epochs,float learn
   float total_loss=0;
   for(int batch=0;batch<data->num_batches;batch++){
    float *output=malloc((W+1)*(H*1)*sizeof(float));
-   dense_layer(layer,data->images[batch],output,H,W);
+   dense_layer_strided(layer,data->images[batch],output,H,W,stride);
    float loss=compute_loss(output,data->targets[batch]);
    total_loss+=loss;
    float *d_output=compute_loss_gradients(output,data->targets[batch]);
@@ -195,7 +172,6 @@ void train_conv_layer(ConvLayer *layer,TrainingData *data,int epochs,float learn
 }
 
 int main(){
- ConvLayer l1;
  l1.in_channels=3;
  l1.out_channels=32;
  l1.kernel_size=3;
@@ -204,36 +180,52 @@ int main(){
 
 
 
- float *result=malloc(H*W*sizeof(float)*l1.out_channels);
+ result=malloc(H*W*sizeof(float)*l1.out_channels);
  for(int i=0;i<l1.out_channels;i++)
   l1.biases[i]=0;
  srand(time(0));
 
- for(size_t i=0;i<l1.kernel_size*l1.kernel_size*l1.out_channels;i++){
-  //l1.weights[i]=rand()*1.0f/RAND_MAX;
-	l1.weights[i]=0;
+ for(size_t i=0;i<l1.kernel_size*l1.kernel_size*l1.out_channels*l1.in_channels;i++){
+  l1.weights[i]=rand()*1.0f/RAND_MAX;
  }
- for(int i=0;i<l1.out_channels;i++){
-  l1.weights[i*9+5]=0.2;
+printf("[0]=%f [1]=%f [2]=%f\n",l1.weights[0],l1.weights[1],l1.weights[2]);
+
+ //нормализация весов
+
+ for(size_t j=0;j<l1.in_channels*l1.out_channels;j++){
+  float pixel_weight_summ=0;
+  for(size_t i=0;i<l1.kernel_size*l1.kernel_size;i++){
+   pixel_weight_summ+=l1.weights[i+j*l1.kernel_size*l1.kernel_size];
+  }
+  for(size_t i=0;i<l1.kernel_size*l1.kernel_size;i++){
+   if(pixel_weight_summ!=0)
+    l1.weights[i+j*l1.kernel_size*l1.kernel_size]/=pixel_weight_summ*0.5;
+  }
  }
 
- l1.weights[0]=-0.1;
- l1.weights[1]=-0.1;
- l1.weights[2]=-0.1;
- l1.weights[3]=0;
- l1.weights[4]=0;
- l1.weights[5]=0;
- l1.weights[6]=0.1;
- l1.weights[7]=0.1;
- l1.weights[8]=0.1;
-
- ConvLayer l2;
- l2.in_channels=32;
+ l2.in_channels=l1.out_channels;
  l2.out_channels=3;
  l2.kernel_size=3;
  l2.weights=malloc(sizeof(float)*l2.kernel_size*l2.kernel_size*l2.out_channels*l2.in_channels);
  l2.biases=malloc(sizeof(float)*l2.out_channels);
 
+ for(size_t i=0;i<l2.kernel_size*l2.kernel_size*l2.out_channels*l2.in_channels;i++){
+  l2.weights[i]=rand()*1.0f/RAND_MAX;
+ }
+
+ for(size_t j=0;j<l2.in_channels*l2.out_channels;j++){
+  float pixel_weight_summ=0;
+  for(size_t i=0;i<l2.kernel_size*l2.kernel_size;i++){
+   pixel_weight_summ+=l2.weights[i+j*l2.kernel_size*l2.kernel_size];
+  }
+  for(size_t i=0;i<l2.kernel_size*l2.kernel_size;i++){
+   if(pixel_weight_summ!=0)
+    l2.weights[i+j*l2.kernel_size*l2.kernel_size]/=pixel_weight_summ;
+  }
+ }
+
+
+printf("[0]=%f [1]=%f [2]=%f\n",l1.weights[0],l1.weights[1],l1.weights[2]);
  float *result2=malloc(H*W*sizeof(float)*l2.out_channels);
 
  float *image;
@@ -324,19 +316,24 @@ printf("after: w5=%.5f\n",l1.weights[5]);
  dense_layer_strided(&l1,image,result,H,W,stride);
 printf("B:result[0]=%f\n",result[0]);
 */
- for(int i=0;i<640*480*l1.out_channels;i++){
-  if(result[i]<0)
- ;//  result[i]=0;
- }
 
  for(int i=0;i<640*480;i++){
 //  texture[i*3]=(unsigned char)(image1[i*l1.out_channels]*255);
+
   texture[i*3]=(unsigned char)(result[i*l1.out_channels]*255);
   texture[i*3+1]=(unsigned char)(result[i*l1.out_channels+1]*255);
   texture[i*3+2]=(unsigned char)(result[i*l1.out_channels+2]*255);
-
+/*
+  texture[i*3]=(unsigned char)(result2[i*l2.out_channels]*255);
+  texture[i*3+1]=(unsigned char)(result2[i*l2.out_channels+1]*255);
+  texture[i*3+2]=(unsigned char)(result2[i*l2.out_channels+2]*255);
+*/
  }
-printf("C\n");
-
+ unsigned char *FUCK=malloc(W*3);
+ for(int y=0;y<H;y++){
+  memcpy(FUCK,texture+y*W*3,W*3);
+ }
+ printf("ASD\n");
+ save_png("layer1.png",texture,W,H);
  createWindow();
 }
