@@ -79,49 +79,47 @@ void draw(){
 }
 int map_offset=0;
 LRESULT CALLBACK WinProc(HWND lhwnd,UINT msg,WPARAM wParam,LPARAM lParam){
-  switch(msg){
-    case WM_CREATE:
-
-    hDC=GetDC(lhwnd);
-    iPixelFormat = ChoosePixelFormat(hDC, &pfd);
-    SetPixelFormat(hDC,iPixelFormat,&pfd);
-    hRC = wglCreateContext( hDC );
-    wglMakeCurrent(hDC, hRC);
-    init_opengl();
-    break;
-    case WM_PAINT:
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      draw();
-      glFinish();
-      SwapBuffers(hDC);
-    break;
-    case WM_KEYDOWN:
-    if(wParam==0x6d){ //numpad "-"
-      if(map_offset>0)
-       map_offset--;
-    }
-    if(wParam==0x6b){ //numpad "-"
-      if(map_offset<l1.out_channels-3)
-       map_offset++;
-    }
-
- for(size_t i=0;i<640*480;i++){
-  texture[i*3]=(unsigned char)(result[i*l1.out_channels+map_offset]*255);
-  texture[i*3+1]=(unsigned char)(result[i*l1.out_channels+1+map_offset]*255);
-  texture[i*3+2]=(unsigned char)(result[i*l1.out_channels+2+map_offset]*255);
- }
- glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,640/stride,480/stride,0,GL_RGB,GL_UNSIGNED_BYTE,texture);
-
-
+ switch(msg){
+  case WM_CREATE:
+   hDC=GetDC(lhwnd);
+   iPixelFormat = ChoosePixelFormat(hDC, &pfd);
+   SetPixelFormat(hDC,iPixelFormat,&pfd);
+   hRC = wglCreateContext( hDC );
+   wglMakeCurrent(hDC, hRC);
+   init_opengl();
+  break;
+  case WM_PAINT:
+   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+   draw();
+   glFinish();
+   SwapBuffers(hDC);
+  break;
+  case WM_KEYDOWN:
+/*
+   if(wParam==0x6d){ //numpad "-"
+    if(map_offset>0)
+     map_offset--;
+   }
+   if(wParam==0x6b){ //numpad "-"
+    if(map_offset<l1.out_channels-3)
+     map_offset++;
+   }
+   for(size_t i=0;i<640*480;i++){
+    texture[i*3]=(unsigned char)(result[i*l1.out_channels+map_offset]*255);
+    texture[i*3+1]=(unsigned char)(result[i*l1.out_channels+1+map_offset]*255);
+    texture[i*3+2]=(unsigned char)(result[i*l1.out_channels+2+map_offset]*255);
+   }
+   glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,640/stride,480/stride,0,GL_RGB,GL_UNSIGNED_BYTE,texture);
 //printf("%X %x\n",wParam,lParam);
-    break;
-    case WM_DESTROY:
-      PostQuitMessage(0);
-    break;
-    default:
-      return DefWindowProc(lhwnd,msg,wParam,lParam);
-  }
-  return 0;
+*/
+  break;
+  case WM_DESTROY:
+   PostQuitMessage(0);
+  break;
+  default:
+   return DefWindowProc(lhwnd,msg,wParam,lParam);
+ }
+ return 0;
 }
 
 void createWindow(){
